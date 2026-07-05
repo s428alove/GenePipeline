@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GenePipeline</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">GenePipeline</p>
+      <h1>Dataset preparation and analysis</h1>
+    </div>
+    <div id="pipelineStage" class="stage-badge">Dataset</div>
+  </header>
+
+  <main class="app-shell">
+    <nav class="pipeline-nav" aria-label="Pipeline stages">
+      <button class="nav-step is-active" type="button" data-stage="dataset">
+        <span class="step-number">1</span>
+        <span>
+          <strong>Dataset / V0</strong>
+          <small>Ingest and pre-QC</small>
+        </span>
+      </button>
+      <button class="nav-step" type="button" data-stage="decision" disabled>
+        <span class="step-number">2</span>
+        <span>
+          <strong>Decision</strong>
+          <small>Sample inclusion and groups</small>
+        </span>
+      </button>
+      <button class="nav-step" type="button" data-stage="v1" disabled>
+        <span class="step-number">3</span>
+        <span>
+          <strong>V1 Analysis</strong>
+          <small>QC and differential expression</small>
+        </span>
+      </button>
+      <button class="nav-step" type="button" data-stage="results" disabled>
+        <span class="step-number">4</span>
+        <span>
+          <strong>Results</strong>
+          <small>Figures and tables</small>
+        </span>
+      </button>
+    </nav>
+
+    <div class="workspace">
+      <section id="datasetPanel" class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Stage 1</p>
+            <h2>Dataset input</h2>
+            <p>
+              Enter a GEO Series accession. V0 will ingest the dataset, run pre-QC,
+              map probes to genes, and assess post-aggregation missingness.
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="form-grid">
+            <label class="field">
+              <span>GSE accession</span>
+              <input
+                id="gse"
+                type="text"
+                value="GSE10288"
+                autocomplete="off"
+                spellcheck="false"
+                aria-describedby="gseHelp"
+              />
+              <small id="gseHelp">Example: GSE10288</small>
+            </label>
+
+            <label class="field">
+              <span>Initial missing-gene threshold</span>
+              <input
+                id="v0Threshold"
+                type="number"
+                value="0.05"
+                min="0"
+                max="1"
+                step="0.01"
+              />
+              <small>0.05 means 5% of genes.</small>
+            </label>
+          </div>
+
+          <div class="action-row">
+            <button id="runV0Button" class="button primary" type="button">
+              Run V0
+            </button>
+          </div>
+
+          <div
+            id="v0Status"
+            class="status-box"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></div>
+        </div>
+
+        <section id="missingnessGateCard" class="card gate-card" hidden>
+          <div class="card-heading-row">
+            <div>
+              <p class="section-label warning-label">Review required</p>
+              <h3>Post-aggregation missingness</h3>
+            </div>
+            <span class="status-pill warning">Paused</span>
+          </div>
+
+          <p id="gateExplanation" class="lead"></p>
+
+          <dl class="metric-grid">
+            <div>
+              <dt>Genes before filtering</dt>
+              <dd id="gateGenesBefore">—</dd>
+            </div>
+            <div>
+              <dt>Genes to remove</dt>
+              <dd id="gateGenesRemoved">—</dd>
+            </div>
+            <div>
+              <dt>Genes remaining</dt>
+              <dd id="gateGenesAfter">—</dd>
+            </div>
+            <div>
+              <dt>Removal rate</dt>
+              <dd id="gateRemovalRate">—</dd>
+            </div>
+            <div>
+              <dt>Current threshold</dt>
+              <dd id="gateCurrentThreshold">—</dd>
+            </div>
+            <div>
+              <dt>Recommended threshold</dt>
+              <dd id="gateRecommendedThreshold">—</dd>
+            </div>
+          </dl>
+
+          <details class="details-box">
+            <summary>Review technical reference</summary>
+            <p>
+              Policy: remove genes containing non-finite values after
+              probe-to-gene aggregation. No zero imputation is performed.
+            </p>
+            <p>
+              Missingness report:
+              <code id="gateReportPath">—</code>
+            </p>
+          </details>
+
+          <div class="action-row split">
+            <p class="muted">
+              The pipeline remains paused until you explicitly approve a
+              dataset-specific threshold.
+            </p>
+            <button id="approveGateButton" class="button primary" type="button">
+              Approve recommended threshold and rerun
+            </button>
+          </div>
+        </section>
+
+        <section id="v0CompleteCard" class="card success-card" hidden>
+          <div class="card-heading-row">
+            <div>
+              <p class="section-label success-label">Completed</p>
+              <h3>V0 output is ready</h3>
+            </div>
+            <span class="status-pill success">Ready</span>
+          </div>
+
+          <dl class="metric-grid">
+            <div>
+              <dt>Samples</dt>
+              <dd id="completeSamples">—</dd>
+            </div>
+            <div>
+              <dt>Genes retained</dt>
+              <dd id="completeGenesAfter">—</dd>
+            </div>
+            <div>
+              <dt>Genes removed</dt>
+              <dd id="completeGenesRemoved">—</dd>
+            </div>
+            <div>
+              <dt>Approved threshold</dt>
+              <dd id="completeThreshold">—</dd>
+            </div>
+          </dl>
+
+          <p class="lead">
+            Canonical gene-level expression is ready for sample-level decisions.
+          </p>
+
+          <div class="action-row">
+            <button id="continueDecisionButton" class="button primary" type="button">
+              Continue to Decision
+            </button>
+          </div>
+        </section>
+      </section>
+
+      <section id="decisionPanel" class="panel" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Stage 2</p>
+            <h2>Decision layer</h2>
+            <p>
+              Review sample inclusion, assign group labels, and map the two
+              included groups to case and control.
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="form-grid">
+            <label class="field">
+              <span>GSE</span>
+              <input id="decisionGse" type="text" readonly />
+            </label>
+            <label class="field">
+              <span>Output path</span>
+              <input id="out" type="text" readonly />
+            </label>
+          </div>
+
+          <div class="action-row wrap">
+            <button id="loadProjectButton" class="button secondary" type="button">
+              Reload candidates
+            </button>
+            <button id="saveDecisionButton" class="button secondary" type="button" disabled>
+              Save Decision
+            </button>
+            <button id="exportMergeButton" class="button primary" type="button" disabled>
+              Export + Merge
+            </button>
+            <button id="runValidationButton" class="button secondary" type="button" disabled>
+              Run Validation
+            </button>
+          </div>
+
+          <div
+            id="decisionStatus"
+            class="status-box"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></div>
+        </div>
+
+        <div id="summary" class="card compact-card" hidden></div>
+
+        <details id="loadedInfoDetails" class="card compact-card" hidden>
+          <summary>Loaded dataset details</summary>
+          <pre id="loadedInfo"></pre>
+        </details>
+
+        <section id="groupRoleBox" class="card" hidden>
+          <div class="panel-heading compact">
+            <div>
+              <h3>Case / Control mapping</h3>
+              <p>
+                Assign each included group once. The role is applied to every
+                included sample in that group.
+              </p>
+            </div>
+          </div>
+          <div id="groupRoleStatus"></div>
+          <div id="groupRoleRows"></div>
+        </section>
+
+        <div id="validationBox" class="card compact-card" hidden></div>
+
+        <section id="decisionReadyCard" class="card success-card" hidden>
+          <div class="card-heading-row">
+            <div>
+              <p class="section-label success-label">Decision ready</p>
+              <h3>Decision validation passed</h3>
+            </div>
+            <span class="status-pill success">Ready for V1</span>
+          </div>
+
+          <p class="lead">
+            Canonical expression and merged sample metadata are ready for
+            downstream analysis.
+          </p>
+
+          <div class="action-row">
+            <button id="continueV1Button" class="button primary" type="button">
+              Continue to V1 Analysis
+            </button>
+          </div>
+        </section>
+
+        <section id="decisionWorkspace" class="decision-workspace" hidden>
+          <aside class="group-sidebar card compact-card" aria-label="Group summary">
+            <div class="group-sidebar-heading">
+              <div>
+                <p class="section-label">Decision groups</p>
+                <h3>Group</h3>
+              </div>
+              <span id="groupTotalCount" class="count-badge">0</span>
+            </div>
+
+            <p class="group-sidebar-help">
+              Counts update immediately when include or group values change.
+            </p>
+
+            <div id="groupList" class="group-list"></div>
+
+            <button
+              id="createGroupButton"
+              class="group-create-button"
+              type="button"
+              disabled
+            >
+              ＋ Create group
+            </button>
+          </aside>
+
+          <section class="sample-workspace" aria-label="Sample table">
+            <div class="sample-workspace-heading">
+              <div>
+                <p class="section-label">Samples</p>
+                <h3 id="sampleTableTitle">All samples</h3>
+              </div>
+              <span id="sampleTableCount" class="sample-count-text">0 samples</span>
+            </div>
+
+            <div id="batchToolbar" class="batch-toolbar" hidden>
+              <strong id="selectedCount">0 samples selected</strong>
+
+              <div class="batch-actions">
+                <select
+                  id="batchGroupSelect"
+                  aria-label="Target group"
+                >
+                  <option value="">Move to group…</option>
+                </select>
+
+                <button
+                  id="batchMoveButton"
+                  class="button secondary compact-button"
+                  type="button"
+                  disabled
+                >
+                  Move
+                </button>
+
+                <button
+                  id="batchExcludeButton"
+                  class="button secondary compact-button"
+                  type="button"
+                >
+                  Exclude
+                </button>
+
+                <button
+                  id="batchUnassignButton"
+                  class="button secondary compact-button"
+                  type="button"
+                >
+                  Unassign
+                </button>
+
+                <button
+                  id="clearSelectionButton"
+                  class="button ghost compact-button"
+                  type="button"
+                >
+                  Clear selection
+                </button>
+              </div>
+            </div>
+
+            <div id="tableContainer" class="table-container"></div>
+          </section>
+        </section>
+      </section>
+
+      <section id="v1Panel" class="panel" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Stage 3</p>
+            <h2>V1 analysis</h2>
+            <p>
+              Run dataset-level QC and two-group differential expression using
+              the validated Decision output.
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="form-grid">
+            <label class="field">
+              <span>Adjusted P-value cutoff</span>
+              <input
+                id="v1PadjCutoff"
+                type="number"
+                value="0.05"
+                min="0.000001"
+                max="1"
+                step="0.01"
+              />
+              <small>Must be greater than 0 and less than or equal to 1.</small>
+            </label>
+
+            <label class="field">
+              <span>Absolute log2FC cutoff</span>
+              <input
+                id="v1LfcCutoff"
+                type="number"
+                value="1"
+                min="0"
+                step="0.1"
+              />
+              <small>Genes are classified using |log2FC| at or above this value.</small>
+            </label>
+          </div>
+
+          <div class="action-row">
+            <button id="runV1Button" class="button primary" type="button">
+              Run full V1
+            </button>
+          </div>
+
+          <div
+            id="v1Status"
+            class="status-box"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></div>
+        </div>
+
+        <section id="v1CompleteCard" class="card success-card" hidden>
+          <div class="card-heading-row">
+            <div>
+              <p class="section-label success-label">Completed</p>
+              <h3>V1 outputs are ready</h3>
+            </div>
+            <span class="status-pill success">Results ready</span>
+          </div>
+
+          <dl class="metric-grid">
+            <div>
+              <dt>GSE</dt>
+              <dd id="v1CompleteGse">—</dd>
+            </div>
+            <div>
+              <dt>Adjusted P cutoff</dt>
+              <dd id="v1CompletePadj">—</dd>
+            </div>
+            <div>
+              <dt>|log2FC| cutoff</dt>
+              <dd id="v1CompleteLfc">—</dd>
+            </div>
+          </dl>
+
+          <div class="action-row">
+            <button id="continueResultsButton" class="button primary" type="button">
+              View Results
+            </button>
+          </div>
+        </section>
+      </section>
+
+      <section id="resultsPanel" class="panel" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Stage 4</p>
+            <h2>Results</h2>
+            <p>
+              Review QC figures, differential-expression plots, and exported
+              result tables.
+            </p>
+          </div>
+        </div>
+
+        <div class="card result-controls-card">
+          <div class="card-heading-row">
+            <div>
+              <h3>Result thresholds</h3>
+              <p class="muted">
+                Recalculate DEG classification and result plots without rerunning
+                dataset-level QC.
+              </p>
+            </div>
+            <span id="resultRunModeBadge" class="status-pill">Full run</span>
+          </div>
+
+          <div class="form-grid">
+            <label class="field">
+              <span>Adjusted P-value cutoff</span>
+              <input
+                id="resultPadjCutoff"
+                type="number"
+                value="0.05"
+                min="0.000001"
+                max="1"
+                step="0.01"
+              />
+            </label>
+
+            <label class="field">
+              <span>Absolute log2FC cutoff</span>
+              <input
+                id="resultLfcCutoff"
+                type="number"
+                value="1"
+                min="0"
+                step="0.1"
+              />
+            </label>
+          </div>
+
+          <div class="action-row">
+            <button id="rerunThresholdsButton" class="button primary" type="button">
+              Recalculate DEG results
+            </button>
+          </div>
+
+          <div
+            id="resultsStatus"
+            class="status-box"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></div>
+        </div>
+
+        <section class="results-section">
+          <div class="results-section-heading">
+            <div>
+              <p class="section-label">QC overview</p>
+              <h3>Dataset-level diagnostics</h3>
+            </div>
+            <span class="muted">Updated by full V1 runs</span>
+          </div>
+
+          <div class="figure-grid three-column">
+            <article class="figure-card">
+              <div class="figure-card-heading">
+                <h4>PCA</h4>
+                <a id="pcaOpenLink" href="#" target="_blank" rel="noopener">
+                  Open image
+                </a>
+              </div>
+              <img id="pcaImage" alt="PCA plot" />
+            </article>
+
+            <article class="figure-card">
+              <div class="figure-card-heading">
+                <h4>Sample distance heatmap</h4>
+                <a
+                  id="distanceHeatmapOpenLink"
+                  href="#"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Open image
+                </a>
+              </div>
+              <img id="distanceHeatmapImage" alt="Sample distance heatmap" />
+            </article>
+
+            <article class="figure-card">
+              <div class="figure-card-heading">
+                <h4>Expression boxplot</h4>
+                <a
+                  id="expressionBoxplotOpenLink"
+                  href="#"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Open image
+                </a>
+              </div>
+              <img id="expressionBoxplotImage" alt="Expression boxplot" />
+            </article>
+          </div>
+        </section>
+
+        <section class="results-section">
+          <div class="results-section-heading">
+            <div>
+              <p class="section-label">Differential expression</p>
+              <h3>Threshold-dependent results</h3>
+            </div>
+            <span id="resultThresholdSummary" class="muted">—</span>
+          </div>
+
+          <div class="figure-grid two-column">
+            <article class="figure-card">
+              <div class="figure-card-heading">
+                <h4>Volcano plot</h4>
+                <a id="volcanoOpenLink" href="#" target="_blank" rel="noopener">
+                  Open image
+                </a>
+              </div>
+              <img id="volcanoImage" alt="Volcano plot" />
+            </article>
+
+            <article class="figure-card">
+              <div class="figure-card-heading">
+                <h4>MA plot</h4>
+                <a id="maOpenLink" href="#" target="_blank" rel="noopener">
+                  Open image
+                </a>
+              </div>
+              <img id="maImage" alt="MA plot" />
+            </article>
+          </div>
+        </section>
+
+        <section class="card results-links-card">
+          <div>
+            <p class="section-label">Files</p>
+            <h3>Result tables and manifests</h3>
+          </div>
+
+          <div class="result-link-grid">
+            <a id="degTableLink" href="#" target="_blank" rel="noopener">
+              DEG table
+            </a>
+            <a id="degSummaryLink" href="#" target="_blank" rel="noopener">
+              DEG summary
+            </a>
+            <a id="qcManifestLink" href="#" target="_blank" rel="noopener">
+              QC manifest
+            </a>
+            <a id="degManifestLink" href="#" target="_blank" rel="noopener">
+              DEG manifest
+            </a>
+            <a id="volcanoPointsLink" href="#" target="_blank" rel="noopener">
+              Volcano points
+            </a>
+            <a id="maPointsLink" href="#" target="_blank" rel="noopener">
+              MA points
+            </a>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
