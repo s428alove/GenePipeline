@@ -2054,8 +2054,10 @@ function getDecisionColumnLabel(column) {
     characteristics: "Characteristics",
     __status__: "Status",
     group_label_edit: "Group",
-    __qc__: "QC",
-    __history__: "Existing state"
+    qc_flag: "QC flag",
+    qc_reason: "QC reason",
+    has_existing_decision: "Existing decision",
+    has_existing_override: "Existing override"
   };
 
   return labels[column] ?? column;
@@ -2069,65 +2071,13 @@ function getDecisionColumnClass(column) {
     characteristics: "col-characteristics",
     __status__: "col-status",
     group_label_edit: "col-group",
-    __qc__: "col-qc",
-    __history__: "col-history"
+    qc_flag: "col-qc-flag",
+    qc_reason: "col-qc-reason",
+    has_existing_decision: "col-existing-decision",
+    has_existing_override: "col-existing-override"
   };
 
   return classes[column] ?? "col-generic";
-}
-
-function normalizeDisplayValue(value) {
-  const text = String(value ?? "").trim();
-  return text === "" || text.toUpperCase() === "NA" ? "" : text;
-}
-
-function renderCharacteristics(value) {
-  const text = normalizeDisplayValue(value);
-
-  if (text === "") {
-    return '<span class="cell-empty">—</span>';
-  }
-
-  return text
-    .split(";")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => `<span>${escapeHtml(part)}</span>`)
-    .join("");
-}
-
-function renderQcCell(row) {
-  const flag = normalizeDisplayValue(row.qc_flag);
-  const reason = normalizeDisplayValue(row.qc_reason);
-
-  if (flag === "" && reason === "") {
-    return '<span class="cell-empty">—</span>';
-  }
-
-  return `
-    <div class="cell-stack compact">
-      ${flag ? `<strong>${escapeHtml(flag)}</strong>` : ""}
-      ${reason ? `<span>${escapeHtml(reason)}</span>` : ""}
-    </div>
-  `;
-}
-
-function renderExistingState(row) {
-  const hasDecision =
-    String(row.has_existing_decision ?? "").trim().toUpperCase() === "TRUE";
-  const hasOverride =
-    String(row.has_existing_override ?? "").trim().toUpperCase() === "TRUE";
-
-  return `
-    <div class="state-pair" aria-label="Existing decision and override state">
-      <span class="mini-state ${hasDecision ? "is-present" : ""}">
-        Decision ${hasDecision ? "✓" : "—"}
-      </span>
-      <span class="mini-state ${hasOverride ? "is-present" : ""}">
-        Override ${hasOverride ? "✓" : "—"}
-      </span>
-    </div>
-  `;
 }
 
 function renderTable(entries) {
@@ -2154,14 +2104,15 @@ function renderTable(entries) {
     "characteristics",
     "__status__",
     "group_label_edit",
-    "__qc__",
-    "__history__"
+    "qc_flag",
+    "qc_reason",
+    "has_existing_decision",
+    "has_existing_override"
   ];
 
-  const columns = preferredColumns.filter((column) => {
-    if (column.startsWith("__")) return true;
-    return column in firstRow;
-  });
+  const columns = preferredColumns.filter(
+    (column) => column === "__status__" || column in firstRow
+  );
 
   let html = `
     <table class="decision-table">
@@ -2228,10 +2179,7 @@ function renderTable(entries) {
             </span>
           </td>
         `;
-        return;
-      }
-
-      if (column === "group_label_edit") {
+      } else if (column === "group_label_edit") {
         html += `
           <td class="${escapeHtml(columnClass)}">
             <input
@@ -2243,54 +2191,13 @@ function renderTable(entries) {
             />
           </td>
         `;
-        return;
-      }
-
-      if (column === "__qc__") {
+      } else {
         html += `
           <td class="${escapeHtml(columnClass)}">
-            ${renderQcCell(row)}
+            ${escapeHtml(row[column] ?? "")}
           </td>
         `;
-        return;
       }
-
-      if (column === "__history__") {
-        html += `
-          <td class="${escapeHtml(columnClass)}">
-            ${renderExistingState(row)}
-          </td>
-        `;
-        return;
-      }
-
-      const rawValue = row[column] ?? "";
-      const displayValue = normalizeDisplayValue(rawValue);
-
-      if (column === "characteristics") {
-        html += `
-          <td
-            class="${escapeHtml(columnClass)}"
-            title="${escapeHtml(displayValue)}"
-          >
-            <div class="characteristics-list">
-              ${renderCharacteristics(displayValue)}
-            </div>
-          </td>
-        `;
-        return;
-      }
-
-      html += `
-        <td
-          class="${escapeHtml(columnClass)}"
-          title="${escapeHtml(displayValue)}"
-        >
-          ${displayValue === ""
-            ? '<span class="cell-empty">—</span>'
-            : escapeHtml(displayValue)}
-        </td>
-      `;
     });
 
     html += "</tr>";

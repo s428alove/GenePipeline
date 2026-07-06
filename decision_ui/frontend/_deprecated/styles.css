@@ -140,13 +140,13 @@ button:disabled {
 
 .workspace {
   min-width: 0;
-  padding: 18px 14px 30px;
+  padding: 24px 28px 34px;
 }
 
 .panel {
   width: 100%;
-  max-width: none;
-  margin: 0;
+  max-width: 1560px;
+  margin: 0 auto;
 }
 
 .panel-heading {
@@ -411,8 +411,8 @@ pre {
 
 .decision-workspace {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
   margin-top: 18px;
 }
@@ -746,7 +746,7 @@ pre {
 
 .table-container {
   margin-top: 0;
-  overflow: visible;
+  overflow: auto;
   border: 1px solid #d9e1e7;
   border-radius: 12px;
   background: #ffffff;
@@ -754,16 +754,15 @@ pre {
 
 .decision-table {
   width: 100%;
-  min-width: 0;
+  min-width: 1620px;
   table-layout: fixed;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 0.84rem;
+  border-collapse: collapse;
+  font-size: 0.86rem;
 }
 
 .decision-table th,
 .decision-table td {
-  padding: 9px 9px;
+  padding: 10px 11px;
   border-bottom: 1px solid #e4e9ed;
   text-align: left;
   vertical-align: top;
@@ -772,23 +771,15 @@ pre {
 .decision-table th {
   position: sticky;
   top: 0;
-  z-index: 8;
+  z-index: 2;
   color: #344656;
   background: #eef3f6;
   white-space: nowrap;
-  box-shadow: 0 1px 0 #dbe3e8;
-}
-
-.decision-table thead th:first-child {
-  border-top-left-radius: 11px;
-}
-
-.decision-table thead th:last-child {
-  border-top-right-radius: 11px;
 }
 
 .decision-table td {
-  line-height: 1.4;
+  max-width: none;
+  line-height: 1.45;
   overflow-wrap: break-word;
   word-break: normal;
   white-space: normal;
@@ -799,124 +790,76 @@ pre {
 }
 
 .decision-table col.selection-column {
-  width: 3.5%;
+  width: 44px;
 }
 
 .decision-table col.col-sample-id {
-  width: 8%;
+  width: 120px;
 }
 
 .decision-table col.col-title {
-  width: 12%;
+  width: 230px;
 }
 
 .decision-table col.col-source {
-  width: 11%;
+  width: 190px;
 }
 
 .decision-table col.col-characteristics {
-  width: 29%;
+  width: 360px;
 }
 
 .decision-table col.col-status {
-  width: 8%;
+  width: 105px;
 }
 
 .decision-table col.col-group {
-  width: 11%;
+  width: 170px;
 }
 
-.decision-table col.col-qc {
-  width: 9%;
+.decision-table col.col-qc-flag {
+  width: 90px;
 }
 
-.decision-table col.col-history {
-  width: 8.5%;
+.decision-table col.col-qc-reason {
+  width: 230px;
+}
+
+.decision-table col.col-existing-decision,
+.decision-table col.col-existing-override {
+  width: 135px;
 }
 
 .decision-table .selection-column {
-  padding-left: 5px;
-  padding-right: 5px;
+  padding-left: 8px;
+  padding-right: 8px;
   text-align: center;
   vertical-align: middle;
 }
 
 .decision-table .col-sample-id,
-.decision-table .col-status {
+.decision-table .col-status,
+.decision-table .col-qc-flag,
+.decision-table .col-existing-decision,
+.decision-table .col-existing-override {
   white-space: nowrap;
 }
 
 .decision-table .col-title,
 .decision-table .col-source,
 .decision-table .col-characteristics,
-.decision-table .col-qc {
+.decision-table .col-qc-reason {
   overflow-wrap: anywhere;
 }
 
 .decision-table td input,
 .decision-table td select {
   min-width: 0;
-  min-height: 32px;
-  padding: 6px 8px;
+  min-height: 34px;
 }
 
 .decision-table .col-group input {
   width: 100%;
-}
-
-.characteristics-list {
-  display: grid;
-  gap: 2px;
-}
-
-.characteristics-list > span {
-  display: block;
-}
-
-.cell-stack {
-  display: grid;
-  gap: 3px;
-}
-
-.cell-stack.compact {
-  font-size: 0.78rem;
-}
-
-.cell-empty {
-  color: #9aa5ae;
-}
-
-.state-pair {
-  display: grid;
-  gap: 4px;
-}
-
-.mini-state {
-  display: inline-flex;
-  min-height: 22px;
-  align-items: center;
-  padding: 2px 6px;
-  border-radius: 999px;
-  color: #7b8791;
-  background: #f0f3f5;
-  font-size: 0.7rem;
-  white-space: nowrap;
-}
-
-.mini-state.is-present {
-  color: #245d3b;
-  background: #e5f2ea;
-}
-
-@media (max-width: 1180px) {
-  .table-container {
-    overflow-x: auto;
-    overflow-y: visible;
-  }
-
-  .decision-table {
-    min-width: 1040px;
-  }
 }
 
 [hidden] {
