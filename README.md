@@ -539,6 +539,22 @@ results/
 
 ---
 
+## Screenshots
+
+### V0 Missingness Gate
+
+![V0 Missingness Gate](docs/images/v0-missingness-gate.png)
+
+### Decision Layer
+
+![Decision Layer](docs/images/decision-layer.png)
+
+### Results Dashboard
+
+![Results Dashboard](docs/images/results-dashboard.png)
+
+---
+
 ## 專案結構
 
 ```text
@@ -678,6 +694,8 @@ Export + Merge
 ```
 
 ---
+
+
 
 ## 版本
 
