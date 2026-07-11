@@ -1,8 +1,8 @@
-# GenePipeline V1 MVP
+# GenePipeline V1.1.1 MVP
 
-> **A local, browser-based GEO expression analysis workflow for preprocessing, sample decision management, quality control, and two-group differential-expression analysis.**
+> **A local, browser-based GEO expression analysis workflow for manually prepared GEO Series Matrix inputs, preprocessing, sample decision management, quality control, and two-group differential-expression analysis.**
 >
-> 本專案是一套以 **R + Node.js + Browser UI** 建構的本機 Gene Expression Pipeline，將 GEO 資料匯入、前處理、樣本決策、QC、差異表現分析與結果檢視整合成可追蹤的端到端流程。
+> 本專案是一套以 **R + Node.js + Browser UI** 建構的本機 Gene Expression Pipeline。使用者需先手動準備 GEO Series Matrix 等原始檔案，Pipeline 會讀取本機資料，完成前處理、樣本決策、QC、差異表現分析與結果檢視，並保留可追蹤的分析紀錄。
 
 ---
 
@@ -13,7 +13,7 @@ GenePipeline 目前定位為一套 **Windows 本機單機版 MVP**，主要目�
 - 對生物領域使用者較友善的操作介面
 - 可追蹤資料處理與人工決策的流程
 - 會在分析前檢查輸入資料與設定的安全閘門
-- 可從 GEO accession 一路執行到 QC 與 DEG 結果的完整工作流
+- 可從本機 GEO Series Matrix 檔案一路執行到 QC 與 DEG 結果的完整工作流
 
 目前適合：
 
@@ -27,9 +27,12 @@ GenePipeline 目前定位為一套 **Windows 本機單機版 MVP**，主要目�
 ## Pipeline 流程
 
 ```text
-GEO accession
+手動準備 GEO Series Matrix
+放入 data_raw/<GSE>/
     ↓
-V0：資料匯入與前處理
+UI 輸入 GSE accession 作為資料夾 key
+    ↓
+V0：讀取本機 GEO 檔案並前處理
     ↓
 Missingness Gate
     ↓
@@ -48,7 +51,8 @@ Results Dashboard
 
 V0 負責：
 
-- 讀取 GEO dataset
+- 讀取 `data_raw/<GSE>/` 中的 GEO Series Matrix
+- 視需要讀取 platform annotation / GPL annotation 檔案
 - 整理 sample metadata
 - GPL annotation 與 probe-to-gene mapping
 - probe-level expression 聚合為 gene-level expression
@@ -97,7 +101,7 @@ V1 負責：
 - Windows 10 或 Windows 11
 - Node.js
 - R
-- 可連線至 GEO 的網路環境
+- 下載 GEO 原始檔案時需要網路環境
 - 建議使用 Chrome 或 Edge
 
 ### Node.js 套件
@@ -165,6 +169,70 @@ BiocManager::install(c(
 > 目前 `server.js` 內的 `RSCRIPT_EXE` 可能指向特定 R 安裝路徑。若其他電腦使用不同 R 版本或安裝位置，需要調整該設定，否則 server 會回報找不到 Rscript。
 
 ---
+
+## 資料輸入方式
+
+GenePipeline V1.1.1 MVP 目前採用 **手動準備 GEO 檔案** 的方式。
+
+在執行 V0 前，請先到 GEO 下載目標 dataset 的 Series Matrix 檔案，並放入：
+
+```text
+data_raw/<GSE>/
+```
+
+例如第一次測試可使用：
+
+```text
+GSE10288
+```
+
+建議資料夾結構：
+
+```text
+data_raw/
+└─ GSE10288/
+   ├─ GSE10288_series_matrix.txt
+   └─ GPL6426_family.soft
+```
+
+或若下載到壓縮檔：
+
+```text
+data_raw/
+└─ GSE10288/
+   ├─ GSE10288_series_matrix.txt.gz
+   └─ GPL6426_family.soft
+```
+
+其中：
+
+- `GSE10288_series_matrix.txt` 或 `.txt.gz` 是主要輸入檔。
+- `GPL6426_family.soft` 是 platform annotation / GPL annotation 檔案。部分 dataset 可能需要對應的 GPL annotation 才能完成 probe-to-gene mapping。
+- UI 中的 `GSE accession` 目前作為資料集識別碼與資料夾定位依據。
+- 目前版本 **不會自動從 GEO 下載資料**。
+
+### 目前支援範圍
+
+目前版本主要支援：
+
+```text
+GEO microarray
+single GSE
+Series Matrix-driven ingest
+gene-level downstream expression output
+```
+
+目前不支援直接分析：
+
+```text
+FASTQ
+BAM
+CEL raw image-level files
+single-cell count matrix
+RNA-seq raw count matrix
+```
+
+若 GEO dataset 沒有可用的 Series Matrix，或只有 raw sequencing files，則不適合直接使用目前版本的 GenePipeline。
 
 ## 安裝方式
 
@@ -242,6 +310,26 @@ http://localhost:3001
 Ctrl + C
 ```
 
+### 第一次測試資料
+
+啟動 UI 前，請先確認 demo dataset 檔案已放在：
+
+```text
+data_raw/GSE10288/
+```
+
+至少需要 Series Matrix 檔案，例如：
+
+```text
+data_raw/GSE10288/GSE10288_series_matrix.txt
+```
+
+若該 dataset 需要 GPL annotation，請一併放入對應檔案，例如：
+
+```text
+data_raw/GSE10288/GPL6426_family.soft
+```
+
 ---
 
 ## 為什麼需要 Node server？
@@ -281,6 +369,14 @@ Node server 負責：
 ```text
 GSE10288
 ```
+
+請注意：這個欄位目前不是自動下載功能，而是用來定位本機資料夾：
+
+```text
+data_raw/GSE10288/
+```
+
+因此在按下 `Run V0` 前，請先確認該資料夾中已有對應的 Series Matrix 檔案。
 
 接著設定：
 
@@ -504,7 +600,23 @@ results/
 
 ### data_raw
 
-儲存 GEO 原始輸入與下載資料。
+儲存使用者手動準備的 GEO 原始輸入檔案。
+
+建議每個 dataset 使用獨立資料夾：
+
+```text
+data_raw/<GSE>/
+```
+
+例如：
+
+```text
+data_raw/GSE10288/
+├─ GSE10288_series_matrix.txt
+└─ GPL6426_family.soft
+```
+
+V0 會在 `data_raw/<GSE>/` 中尋找 Series Matrix 檔案。若找不到資料夾或 Series Matrix，V0 會停止並回報錯誤。
 
 ### data_processed
 
@@ -615,6 +727,8 @@ MyPipeline/
 - 尚未提供正式 installer
 - 尚未包裝成原生 Windows desktop application
 - 尚未建置多人權限、遠端部署與 job queue
+- 目前不會自動從 GEO 下載資料，使用者需手動準備 Series Matrix 檔案
+- 目前主要支援 GEO microarray / Series Matrix-driven ingest
 - GEO dataset 可能需要 dataset-specific review 或 threshold override
 
 ---
@@ -655,6 +769,58 @@ npm install
 - CMD 視窗是否仍開啟
 - port 3001 是否被其他程式占用
 - server 是否顯示 error
+
+### V0 顯示 `Raw GSE folder not found`
+
+代表 Pipeline 找不到：
+
+```text
+data_raw/<GSE>/
+```
+
+請確認：
+
+- `GSE accession` 是否輸入正確
+- 是否已在專案根目錄建立 `data_raw/<GSE>/`
+- Series Matrix 檔案是否放在正確資料夾下
+
+### V0 顯示 `Cannot find series matrix file`
+
+代表已找到 `data_raw/<GSE>/`，但裡面沒有符合條件的 Series Matrix 檔案。
+
+請確認檔案名稱包含：
+
+```text
+series_matrix
+```
+
+或類似格式，且副檔名為：
+
+```text
+.txt
+.tsv
+.gz
+```
+
+例如：
+
+```text
+data_raw/GSE10288/GSE10288_series_matrix.txt
+```
+
+### V0 顯示 annotation / probe-to-gene mapping 相關錯誤
+
+部分 dataset 需要 GPL annotation 才能完成 probe-to-gene mapping。請確認對應的 GPL annotation 檔案已放在：
+
+```text
+data_raw/<GSE>/
+```
+
+例如：
+
+```text
+data_raw/GSE10288/GPL6426_family.soft
+```
 
 ### V1 無法解鎖
 
@@ -702,18 +868,21 @@ Export + Merge
 目前版本：
 
 ```text
-v1.1.0-mvp
+v1.1.1-mvp
+```
 
 主要內容：
 
-- V0 GEO ingest 與 missingness gate
+- V0 local GEO Series Matrix ingest 與 missingness gate
 - Decision Layer UI
 - Decision metadata preservation
 - validation gate
 - V1 full run
 - threshold-only rerun
 - Results dashboard
+- Windows launcher
 - Node API integration
+
 
 ---
 

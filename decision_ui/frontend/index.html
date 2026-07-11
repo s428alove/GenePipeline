@@ -55,8 +55,9 @@
             <p class="section-label">Stage 1</p>
             <h2>Dataset input</h2>
             <p>
-              Enter a GEO Series accession. V0 will ingest the dataset, run pre-QC,
-              map probes to genes, and assess post-aggregation missingness.
+              Enter the GEO Series accession for files already prepared under
+              <code>data_raw/&lt;GSE&gt;/</code>. V0 will read local GEO Series Matrix files,
+              run pre-QC, map probes to genes, and assess post-aggregation missingness.
             </p>
           </div>
         </div>
@@ -73,7 +74,9 @@
                 spellcheck="false"
                 aria-describedby="gseHelp"
               />
-              <small id="gseHelp">Example: GSE10288</small>
+              <small id="gseHelp">
+                Example: GSE10288. Prepare files under data_raw/GSE10288/ before running V0.
+              </small>
             </label>
 
             <label class="field">
