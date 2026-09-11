@@ -166,7 +166,9 @@ BiocManager::install(c(
 
 若仍缺少套件，Pipeline 的 preflight 會回報缺少的 package。
 
-> 目前 `server.js` 內的 `RSCRIPT_EXE` 可能指向特定 R 安裝路徑。若其他電腦使用不同 R 版本或安裝位置，需要調整該設定，否則 server 會回報找不到 Rscript。
+> GenePipeline 會自動尋找並實際執行 installed R，不需手動設定 Rscript path。Phase 1 優先維持開發基準 R 4.5.2；其餘 fallback 與限制見 [Portability foundation](docs/PORTABILITY_PHASE1.md)。R 與 R packages 仍由使用者安裝。
+
+可在專案根目錄執行 `npm run preflight:r` 查看候選、真實版本與選擇結果；失敗時 exit code 為 1。Server 啟動後也可查詢 `GET /api/preflight/r`。
 
 ---
 
@@ -272,12 +274,12 @@ start_pipeline.bat
 
 啟動檔會：
 
-1. 尋找包含 `server.js` 的 GenePipeline 專案資料夾
+1. 尋找包含 `decision_ui/api/server.js` 的 GenePipeline 專案資料夾
 2. 若無法自動找到，開啟資料夾選擇視窗，請選擇 `MyPipeline`
 3. 記住選擇過的專案路徑，供下次啟動使用
 4. 檢查 Node.js 與 npm 是否可使用
 5. 若尚未安裝 Node dependencies，詢問是否執行 `npm install`
-6. 啟動 `node server.js`
+6. 啟動 `node decision_ui/api/server.js`
 7. 自動開啟瀏覽器至 `http://localhost:3001`
 
 使用期間請保留啟動後出現的命令視窗。關閉該視窗或按下 `Ctrl + C`，Pipeline server 就會停止。
@@ -295,7 +297,7 @@ cd C:\path\to\GenePipeline
 啟動 server：
 
 ```bat
-node server.js
+node decision_ui/api/server.js
 ```
 
 接著開啟：
@@ -671,14 +673,18 @@ V0 會在 `data_raw/<GSE>/` 中尋找 Series Matrix 檔案。若找不到資料�
 
 ```text
 MyPipeline/
-├─ frontend/
-│  ├─ index.html
-│  ├─ app.js
-│  └─ styles.css
+├─ decision_ui/
+│  ├─ frontend/
+│  │  ├─ index.html
+│  │  ├─ app.js
+│  │  └─ styles.css
+│  └─ api/
+│     ├─ server.js
+│     ├─ runtime/
+│     └─ package.json
 ├─ V0_data_ingest/
 ├─ decision_layer/
 ├─ V1_analysis/
-├─ server.js
 ├─ start_pipeline.bat
 ├─ package.json
 ├─ package-lock.json
@@ -733,6 +739,14 @@ MyPipeline/
 
 ---
 
+## Portability 與開發驗證
+
+- 根目錄 `npm start` 會啟動 `decision_ui/api/server.js`。
+- 根目錄 `npm test` 執行 discovery / selection / preflight 與 server regression 測試；本機整合測試需要 R，Decision runner 測試另需 README 列出的套件。
+- 無可用 R 時，R-backed API 回傳 HTTP 503、`stage: r_preflight` 與可讀的安裝／修復提示，UI 與 health endpoint 仍可使用。
+- [Phase 1 設計、audit 與測試結果](docs/PORTABILITY_PHASE1.md)
+- [Windows executable feasibility report](docs/NODE_EXECUTABLE_FEASIBILITY.md)
+
 ## Troubleshooting
 
 ### `node` 不是內部或外部命令
@@ -751,7 +765,7 @@ npm install
 
 ### 雙擊 `start_pipeline.bat` 後要求選擇資料夾
 
-請選擇包含 `server.js` 的 `MyPipeline` 專案根目錄，不要選擇 `frontend` 資料夾。啟動器會記住該位置。
+請選擇包含 `decision_ui/api/server.js` 的 `MyPipeline` 專案根目錄，不要選擇 `frontend` 資料夾。啟動器會記住該位置。
 
 ### 雙擊 `start_pipeline.bat` 後顯示找不到 Node.js
 
@@ -765,7 +779,7 @@ npm install
 
 確認：
 
-- CMD 中是否已執行 `node server.js`
+- CMD 中是否已執行 `node decision_ui/api/server.js`
 - CMD 視窗是否仍開啟
 - port 3001 是否被其他程式占用
 - server 是否顯示 error

@@ -5,9 +5,10 @@ const path = require("path");
 const crypto = require("crypto");
 const { execFileSync } = require("child_process");
 
+const { preflightR } = require("./runtime/r-preflight");
+
+function createApp({ preflight = preflightR } = {}) {
 const app = express();
-const PORT = 3001;
-const RSCRIPT_EXE = "C:/Program Files/R/R-4.5.2/bin/Rscript.exe";
 const PROJECT_ROOT = path.join(__dirname, "..", "..");
 
 app.use(cors());
@@ -520,12 +521,12 @@ function runRscriptSync(
   scriptPath,
   args,
   {
-    cwd
+    cwd, executablePath
   } = {}
 ) {
   try {
     const stdout = execFileSync(
-      RSCRIPT_EXE,
+      executablePath,
       [scriptPath, ...args],
       {
         cwd,
@@ -562,6 +563,31 @@ function runRscriptSync(
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
+function checkR(req, res, next) {
+  const runtime = preflight();
+  res.locals.rRuntime = runtime;
+  if (!runtime.ok) {
+    return sendError(res, {
+      stage: "r_preflight", code: runtime.error.code,
+      message: runtime.error.message, details: runtime, httpStatus: 503
+    });
+  }
+  next();
+}
+
+app.get("/api/preflight/r", checkR, (req, res) => {
+  sendSuccess(res, {
+    stage: "r_preflight", message: "R is available.", data: res.locals.rRuntime
+  });
+});
+
+// Check before any R-backed route can modify files. Re-probe on each request so
+// installing/repairing R takes effect without restarting the browser or server.
+app.post([
+  "/api/v0/run", "/api/v1/run", "/api/project/load",
+  "/api/decision/export-and-merge", "/api/decision/run-validation"
+], checkR);
 
 app.post("/api/v0/run", (req, res) => {
   try {
@@ -608,15 +634,6 @@ app.post("/api/v0/run", (req, res) => {
     const out = path.join("data_processed", canonicalGse);
     const paths = buildProjectPaths(canonicalGse, out);
 
-    if (!fs.existsSync(RSCRIPT_EXE)) {
-      return sendError(res, {
-        stage: "v0",
-        code: "RSCRIPT_NOT_FOUND",
-        message: `Rscript executable not found: ${RSCRIPT_EXE}`,
-        httpStatus: 500
-      });
-    }
-
     if (!fs.existsSync(paths.v0RunnerPath)) {
       return sendError(res, {
         stage: "v0",
@@ -639,7 +656,7 @@ app.post("/api/v0/run", (req, res) => {
         "--max_missing_gene_fraction", String(threshold)
       ],
       {
-        cwd: paths.projectRoot
+        cwd: paths.projectRoot, executablePath: res.locals.rRuntime.selected.executablePath
       }
     );
 
@@ -836,15 +853,6 @@ app.post("/api/v1/run", (req, res) => {
     const out = path.join("data_processed", canonicalGse);
     const paths = buildProjectPaths(canonicalGse, out);
 
-    if (!fs.existsSync(RSCRIPT_EXE)) {
-      return sendError(res, {
-        stage: "v1",
-        code: "RSCRIPT_NOT_FOUND",
-        message: `Rscript executable not found: ${RSCRIPT_EXE}`,
-        httpStatus: 500
-      });
-    }
-
     if (!fs.existsSync(paths.v1RunnerPath)) {
       return sendError(res, {
         stage: "v1",
@@ -875,7 +883,7 @@ app.post("/api/v1/run", (req, res) => {
     const args = [
       "--gse", canonicalGse,
       "--scripts_dir", paths.v1ScriptsDir,
-      "--rscript", RSCRIPT_EXE,
+      "--rscript", res.locals.rRuntime.selected.executablePath,
       "--padj_cutoff", String(padj),
       "--lfc_cutoff", String(lfc)
     ];
@@ -888,7 +896,7 @@ app.post("/api/v1/run", (req, res) => {
       paths.v1RunnerPath,
       args,
       {
-        cwd: paths.projectRoot
+        cwd: paths.projectRoot, executablePath: res.locals.rRuntime.selected.executablePath
       }
     );
 
@@ -1031,7 +1039,7 @@ app.post("/api/project/load", (req, res) => {
     const runResult = runRscriptSync(
       paths.buildCandidatesScriptPath,
       args,
-      { cwd: paths.projectRoot }
+      { cwd: paths.projectRoot, executablePath: res.locals.rRuntime.selected.executablePath }
     );
 
     if (!runResult.ok) {
@@ -1188,7 +1196,7 @@ app.post("/api/decision/export-and-merge", (req, res) => {
     const runResult = runRscriptSync(
       paths.mergeScriptPath,
       args,
-      { cwd: paths.projectRoot }
+      { cwd: paths.projectRoot, executablePath: res.locals.rRuntime.selected.executablePath }
     );
 
     if (!runResult.ok) {
@@ -1251,7 +1259,7 @@ app.post("/api/decision/run-validation", (req, res) => {
     const runResult = runRscriptSync(
       paths.validateScriptPath,
       args,
-      { cwd: paths.projectRoot }
+      { cwd: paths.projectRoot, executablePath: res.locals.rRuntime.selected.executablePath }
     );
 
     if (!runResult.ok) {
@@ -1275,6 +1283,13 @@ app.post("/api/decision/run-validation", (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Decision UI API running at http://localhost:${PORT}`);
-});
+return app;
+}
+
+if (require.main === module) {
+  createApp().listen(3001, () => {
+    console.log("Decision UI API running at http://localhost:3001");
+  });
+}
+
+module.exports = { createApp };

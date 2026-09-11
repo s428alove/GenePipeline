@@ -3,5 +3,11 @@
     "cors": "^2.8.6",
     "csv-parse": "^6.1.0",
     "express": "^5.2.1"
+  },
+  "main": "decision_ui/api/server.js",
+  "scripts": {
+    "start": "node decision_ui/api/server.js",
+    "preflight:r": "node decision_ui/api/runtime/r-preflight.js",
+    "test": "node --test tests/*.test.js"
   }
 }

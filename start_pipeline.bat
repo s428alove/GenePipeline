@@ -7,7 +7,7 @@ set "CONFIG_FILE=%LAUNCHER_DIR%.genepipeline_path"
 set "PROJECT_DIR="
 
 rem 1) Prefer the folder containing this launcher.
-if exist "%LAUNCHER_DIR%server.js" (
+if exist "%LAUNCHER_DIR%decision_ui\api\server.js" (
     set "PROJECT_DIR=%LAUNCHER_DIR%"
 )
 
@@ -16,20 +16,17 @@ if not defined PROJECT_DIR if exist "%CONFIG_FILE%" (
     set /p PROJECT_DIR=<"%CONFIG_FILE%"
 )
 
-rem 3) Try the common development location used on this computer.
-if not defined PROJECT_DIR if exist "%USERPROFILE%\Desktop\GenePipeline_V1_demo\MyPipeline\server.js" (
-    set "PROJECT_DIR=%USERPROFILE%\Desktop\GenePipeline_V1_demo\MyPipeline"
-)
+if defined PROJECT_DIR if not exist "%PROJECT_DIR%\decision_ui\api\server.js" set "PROJECT_DIR="
 
-rem 4) If still unresolved, ask the user to select the folder containing server.js.
+rem 3) If still unresolved, ask the user to select the folder containing decision_ui\api\server.js.
 if not defined PROJECT_DIR (
     echo.
     echo GenePipeline project folder was not found automatically.
-    echo Select the MyPipeline folder that contains server.js.
+    echo Select the MyPipeline folder that contains decision_ui\api\server.js.
     echo.
 
     for /f "usebackq delims=" %%I in (`powershell.exe -NoProfile -STA -Command ^
-        "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'Select the GenePipeline project folder that contains server.js'; if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Write($d.SelectedPath) }"`) do (
+        "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'Select the GenePipeline project folder that contains decision_ui\api\server.js'; if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Write($d.SelectedPath) }"`) do (
         set "PROJECT_DIR=%%I"
     )
 )
@@ -41,9 +38,9 @@ if not defined PROJECT_DIR (
     exit /b 1
 )
 
-if not exist "%PROJECT_DIR%\server.js" (
+if not exist "%PROJECT_DIR%\decision_ui\api\server.js" (
     echo.
-    echo [ERROR] server.js was not found in:
+    echo [ERROR] decision_ui\api\server.js was not found in:
     echo %PROJECT_DIR%
     echo.
     echo Select the MyPipeline project folder, not the frontend folder.
@@ -111,7 +108,7 @@ echo.
 
 start "" powershell.exe -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 2; Start-Process 'http://localhost:3001'"
 
-node server.js
+node "decision_ui\api\server.js"
 
 set "EXIT_CODE=%ERRORLEVEL%"
 echo.
