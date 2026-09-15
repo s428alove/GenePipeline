@@ -1,0 +1,25 @@
+Package: GenePipeline
+Type: Project
+Title: GenePipeline Shared Analysis Environment
+Version: 1.1.1
+Description: Repository-level dependency declaration. Imports are the direct
+    analysis runtime requirements. Suggests contains environment tooling only.
+Imports:
+    optparse,
+    readr,
+    dplyr,
+    stringr,
+    tibble,
+    tidyr,
+    jsonlite,
+    ggplot2,
+    pheatmap,
+    digest,
+    limma
+Suggests:
+    renv,
+    BiocManager
+Config/GenePipeline/RenvVersion: 1.1.5
+Config/GenePipeline/BioconductorVersion: 3.22
+Config/GenePipeline/BioconductorPackages: limma
+Config/GenePipeline/CRAN: https://cloud.r-project.org

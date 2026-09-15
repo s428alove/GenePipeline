@@ -12,10 +12,10 @@ write_manifest_json <- function(
     hash_algo = "md5"
 ) {
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
-    stop("Package required: jsonlite. Install with install.packages('jsonlite')", call. = FALSE)
+    stop("Package required: jsonlite. Run GenePipeline environment setup", call. = FALSE)
   }
   if (!requireNamespace("digest", quietly = TRUE)) {
-    stop("Package required: digest. Install with install.packages('digest')", call. = FALSE)
+    stop("Package required: digest. Run GenePipeline environment setup", call. = FALSE)
   }
   
   file_hash <- function(p) {

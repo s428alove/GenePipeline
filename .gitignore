@@ -21,3 +21,13 @@ Thumbs.db
 
 # Local launcher configuration
 .genepipeline_path
+
+# Reproducible environment: commit definitions, not machine libraries or logs.
+renv/library/
+renv/bootstrap/
+renv/cache/
+renv/state/
+renv/staging/
+renv/.setup.lock
+logs/environment/
+tmp/phase2-smoke/

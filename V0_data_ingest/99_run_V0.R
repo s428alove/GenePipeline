@@ -64,7 +64,7 @@ apply_post_aggregation_missing_policy <- function(
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
     stop2(
       "Missing required R package: jsonlite. ",
-      "Install it with install.packages(\"jsonlite\") and rerun V0."
+      "Restart GenePipeline to restore its package environment, then rerun V0."
     )
   }
 

@@ -6,10 +6,12 @@ const crypto = require("crypto");
 const { execFileSync } = require("child_process");
 
 const { preflightR } = require("./runtime/r-preflight");
+const { createPackageEnvironment, analysisEnvironment } = require("./runtime/package-environment");
 
-function createApp({ preflight = preflightR } = {}) {
+function createApp({ preflight = preflightR, projectRoot = path.resolve(__dirname, "../.."),
+  environment = createPackageEnvironment({ project: projectRoot }) } = {}) {
 const app = express();
-const PROJECT_ROOT = path.join(__dirname, "..", "..");
+const PROJECT_ROOT = projectRoot;
 
 app.use(cors());
 app.use(express.json());
@@ -530,6 +532,7 @@ function runRscriptSync(
       [scriptPath, ...args],
       {
         cwd,
+        env: analysisEnvironment(cwd),
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
@@ -582,12 +585,43 @@ app.get("/api/preflight/r", checkR, (req, res) => {
   });
 });
 
+function sendEnvironmentFailure(res, result) {
+  return sendError(res, {
+    stage: "package_environment", code: result.error?.code || "PACKAGE_ENV_NOT_READY",
+    message: result.error?.message || "R package setup is in progress. Wait and retry.",
+    details: result, httpStatus: 503
+  });
+}
+
+async function checkPackages(req, res, next) {
+  const result = await environment.inspect(res.locals.rRuntime);
+  if (!result.ok) return sendEnvironmentFailure(res, result);
+  next();
+}
+
+app.get("/api/environment", checkR, async (req, res) => {
+  const result = environment.isBusy() ? environment.status() : await environment.inspect(res.locals.rRuntime);
+  if (!result.ok) return sendEnvironmentFailure(res, result);
+  sendSuccess(res, { stage: "package_environment", message: "R package environment is Ready.", data: result });
+});
+
+// An explicit repair returns immediately; analysis routes never call setup.
+app.post("/api/environment/setup", checkR, (req, res) => {
+  environment.setup(res.locals.rRuntime);
+  sendSuccess(res, {
+    stage: "package_environment", message: "R package setup requested. Check /api/environment for progress.",
+    state: "setting_up", data: environment.status(), httpStatus: 202
+  });
+});
+
+app.locals.setupEnvironment = () => environment.setup(preflight());
+
 // Check before any R-backed route can modify files. Re-probe on each request so
 // installing/repairing R takes effect without restarting the browser or server.
 app.post([
   "/api/v0/run", "/api/v1/run", "/api/project/load",
   "/api/decision/export-and-merge", "/api/decision/run-validation"
-], checkR);
+], checkR, checkPackages);
 
 app.post("/api/v0/run", (req, res) => {
   try {
@@ -1287,8 +1321,14 @@ return app;
 }
 
 if (require.main === module) {
-  createApp().listen(3001, () => {
+  const environment = createPackageEnvironment({ onState: (state) => {
+    console.log(`[R packages] ${state.state}: ${state.message || state.error?.message || ""}`);
+    if (state.logFile) console.log(`[R packages] Log: ${state.logFile}`);
+  } });
+  const app = createApp({ environment });
+  app.listen(3001, () => {
     console.log("Decision UI API running at http://localhost:3001");
+    app.locals.setupEnvironment();
   });
 }
 

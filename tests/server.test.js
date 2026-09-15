@@ -2,11 +2,12 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const fs = require("node:fs");
-const { spawn, spawnSync } = require("node:child_process");
+const { spawn } = require("node:child_process");
 const { once } = require("node:events");
 const { createApp } = require("../decision_ui/api/server");
 const { preflightR } = require("../decision_ui/api/runtime/r-preflight");
 const { discoverR } = require("../decision_ui/api/runtime/r-discovery");
+const { createPackageEnvironment } = require("../decision_ui/api/runtime/package-environment");
 
 async function serve(t, options) {
   const server = createApp(options).listen(0, "127.0.0.1");
@@ -51,14 +52,8 @@ test("actual R preflight and unchanged route validation", async (t) => {
 test("server executes discovered R against isolated sample metadata", async (t) => {
   const runtime = preflightR();
   assert.equal(runtime.ok, true);
-  const packages = spawnSync(runtime.selected.executablePath, ["-e",
-    'cat(all(vapply(c("optparse", "readr", "dplyr", "stringr"), requireNamespace, logical(1), quietly=TRUE)))'
-  ], { encoding: "utf8", windowsHide: true, timeout: 10000 });
-  if (packages.status === 0 && packages.stdout.trim() === "FALSE") {
-    t.skip("Local R is missing Decision runner packages; install README prerequisites to enable this integration test.");
-    return;
-  }
-  assert.equal(packages.status, 0, packages.stderr);
+  const packages = await createPackageEnvironment().inspect(runtime);
+  assert.equal(packages.ok, true, JSON.stringify(packages));
   const root = path.resolve(__dirname, "..");
   const directory = fs.mkdtempSync(path.join(__dirname, "runtime fixture "));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -82,10 +77,10 @@ test("real server entry starts from a different cwd and serves the current front
   t.after(async () => { if (child.exitCode === null) child.kill(); await exited; });
   let output = "";
   await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("Server startup timed out: " + output)), 10000);
+    const timeout = setTimeout(() => reject(new Error("Server startup timed out: " + output)), 30000);
     child.stdout.on("data", (chunk) => {
       output += chunk;
-      if (output.includes("running at")) { clearTimeout(timeout); resolve(); }
+      if (output.includes("[R packages] ready:")) { clearTimeout(timeout); resolve(); }
     });
     child.stderr.on("data", (chunk) => { output += chunk; });
     child.once("error", (error) => { clearTimeout(timeout); reject(error); });

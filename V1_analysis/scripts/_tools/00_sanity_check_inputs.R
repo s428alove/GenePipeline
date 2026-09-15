@@ -13,61 +13,10 @@
 #
 # This script does not modify data or produce analysis results.
 
-required_packages <- c(
-  "optparse",
-  "readr",
-  "dplyr",
-  "stringr",
-  "tibble",
-  "tidyr",
-  "ggplot2",
-  "pheatmap",
-  "jsonlite",
-  "digest",
-  "limma"
-)
-
-installed_ok <- vapply(
-  required_packages,
-  requireNamespace,
-  quietly = TRUE,
-  FUN.VALUE = logical(1)
-)
-
-missing_packages <- required_packages[!installed_ok]
-
-if (length(missing_packages) > 0L) {
-  cran_packages <- setdiff(missing_packages, "limma")
-  bioc_packages <- intersect(missing_packages, "limma")
-
-  message("=== V1 SANITY CHECK FAILED: MISSING PACKAGES ===")
-  message("Missing required R packages: ", paste(missing_packages, collapse = ", "))
-
-  if (length(cran_packages) > 0L) {
-    message(
-      "Install CRAN packages with:\n",
-      "  install.packages(c(",
-      paste(sprintf('"%s"', cran_packages), collapse = ", "),
-      "))"
-    )
-  }
-
-  if (length(bioc_packages) > 0L) {
-    message(
-      "Install Bioconductor packages with:\n",
-      '  if (!requireNamespace("BiocManager", quietly = TRUE)) ',
-      'install.packages("BiocManager")\n',
-      "  BiocManager::install(c(",
-      paste(sprintf('"%s"', bioc_packages), collapse = ", "),
-      "), ask = FALSE, update = FALSE)"
-    )
-  }
-
-  stop(
-    "V1 environment is not ready. Install the missing packages and rerun.",
-    call. = FALSE
-  )
-}
+# One dependency definition and one repository package readiness check.
+source("tools/r-environment-lib.R")
+gp_require_ready(getwd())
+required_packages <- gp_definition(getwd())$direct
 
 suppressPackageStartupMessages({
   library(optparse)

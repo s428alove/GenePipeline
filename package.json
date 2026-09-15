@@ -8,6 +8,9 @@
   "scripts": {
     "start": "node decision_ui/api/server.js",
     "preflight:r": "node decision_ui/api/runtime/r-preflight.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "setup:environment": "node decision_ui/api/runtime/package-environment.js setup",
+    "preflight:packages": "node decision_ui/api/runtime/package-environment.js check",
+    "test:smoke": "node tools/smoke-environment.js"
   }
 }

@@ -112,63 +112,24 @@ V1 負責：
 npm install
 ```
 
-### 主要 R 套件
+### R package environment（Phase 2）
 
-V1 preflight 目前會檢查：
+使用者只需安裝 R；GenePipeline 啟動後會自動 bootstrap renv、依照隨附的 `renv.lock` 還原套件並驗證環境。第一次設定需要網路，可能需要數分鐘。後續環境已 Ready 時不會重新安裝。
 
-```text
-optparse
-readr
-dplyr
-stringr
-tibble
-tidyr
-ggplot2
-pheatmap
-jsonlite
-digest
-limma
-```
+直接分析依賴的唯一清單是根目錄 [DESCRIPTION](DESCRIPTION) 的 `Imports`；環境工具列在 `Suggests`。實際版本與遞迴依賴由 [renv.lock](renv.lock) 記錄，不使用使用者的 global R library 代替缺少的 project packages。
 
-V0 GEO ingest 另可能使用：
+啟動命令視窗會顯示 checking → bootstrapping／restoring → validating → ready；詳細 setup 記錄位於 `logs/environment/`。Setup 未完成或失敗時，分析會回報 package environment error，請等待完成後重試；若網路問題已排除，可重新啟動 GenePipeline 自動重試。
 
-```text
-GEOquery
-Biobase
-```
+開發／診斷指令（一般首次使用不需手動執行）：
 
-可在 R 中安裝：
+- `npm run preflight:r`：只檢查 R executable 與版本，不依賴 renv。
+- `npm run preflight:packages`：唯讀驗證 project environment。
+- `npm run setup:environment`：獨立 setup／repair；依 lockfile restore，Ready 時直接通過。
+- `GET /api/environment`：查詢 package Ready 與 structured diagnostics。
+- `POST /api/environment/setup`：明確重試 setup，回傳 202 後可查詢進度。
 
-```r
-install.packages(c(
-  "optparse",
-  "readr",
-  "dplyr",
-  "stringr",
-  "tibble",
-  "tidyr",
-  "ggplot2",
-  "pheatmap",
-  "jsonlite",
-  "digest"
-))
-
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
-}
-
-BiocManager::install(c(
-  "limma",
-  "GEOquery",
-  "Biobase"
-))
-```
-
-若仍缺少套件，Pipeline 的 preflight 會回報缺少的 package。
-
-> GenePipeline 會自動尋找並實際執行 installed R，不需手動設定 Rscript path。Phase 1 優先維持開發基準 R 4.5.2；其餘 fallback 與限制見 [Portability foundation](docs/PORTABILITY_PHASE1.md)。R 與 R packages 仍由使用者安裝。
-
-可在專案根目錄執行 `npm run preflight:r` 查看候選、真實版本與選擇結果；失敗時 exit code 為 1。Server 啟動後也可查詢 `GET /api/preflight/r`。
+分析 request 不安裝套件、不改寫 lockfile。V0、Decision、V1 共用同一個 root environment。
+詳見 [Phase 2 environment architecture 與驗證報告](docs/PACKAGE_ENVIRONMENT_PHASE2.md)。
 
 ---
 
@@ -742,7 +703,7 @@ MyPipeline/
 ## Portability 與開發驗證
 
 - 根目錄 `npm start` 會啟動 `decision_ui/api/server.js`。
-- 根目錄 `npm test` 執行 discovery / selection / preflight 與 server regression 測試；本機整合測試需要 R，Decision runner 測試另需 README 列出的套件。
+- 根目錄 `npm test` 執行 runtime、package environment 與 server regression 測試；本機整合測試需先完成自動 environment setup，不會因缺套件而跳過。
 - 無可用 R 時，R-backed API 回傳 HTTP 503、`stage: r_preflight` 與可讀的安裝／修復提示，UI 與 health endpoint 仍可使用。
 - [Phase 1 設計、audit 與測試結果](docs/PORTABILITY_PHASE1.md)
 - [Windows executable feasibility report](docs/NODE_EXECUTABLE_FEASIBILITY.md)

@@ -26,7 +26,7 @@
 if (!requireNamespace("optparse", quietly = TRUE)) {
   stop(
     "Missing bootstrap R package: optparse. Install it with ",
-    "install.packages(\"optparse\") and rerun.",
+    "GenePipeline environment setup (npm run setup:environment), then rerun.",
     call. = FALSE
   )
 }
