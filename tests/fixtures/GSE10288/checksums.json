@@ -1,0 +1,11 @@
+{
+  "config/parameters.json": "645bbeb4d0a7e1cc488bcd9c4223004710f12d6d14a2c1e35ccd5bd32ac16b77",
+  "config/tolerance.json": "c8150c2a7a82ba9e4b51794f1528f151943ecf4a6b27b2357058ed69879cd771",
+  "decision/sample_metadata_decision.tsv": "81bd89a00d522ecb2da3f813a50d3e3d6b7780e1d741d4dd5b7652e8eb7dac96",
+  "expected/contracts.json": "c94e13d5f3cd6a0385232eb35ffc402a321881ed397d7fbf2186cc5e004a611b",
+  "expected/expression_gene_log.tsv": "631d045d73416dbe222c6da61c7850bd32d449c768d7b5e877b8b179a32b77e5",
+  "expected/gene_missingness.tsv": "47325866b5e83ae1c8291e185e3a4131b7846c17cda14ed100e1f2261dfb9fff",
+  "expected/topTable.tsv": "7904fa58ef6dd4b9a0a66d4f3ffe61879c7ee7b2b65dbd6441101ba50a25b0b5",
+  "input/GPL6426_family.soft": "7d4d9450a0e4e26d545a2da8e420f1b0e15758ade877cb9cbe3903a4166543ec",
+  "input/GSE10288_series_matrix.txt": "4db31b63b7c635b7636bc1589842adbbbafebeafe06f771629fd3cc53d240eae"
+}

@@ -1,0 +1,62 @@
+name: Windows R compatibility
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        r: ['4.5.2', '4.5.3']
+    env:
+      NODE_ENV: test
+      GENEPIPELINE_TEST_R_VERSION: ${{ matrix.r }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: npm
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.r }}
+          use-public-rspm: false
+      - run: npm ci
+      - name: Discovery, environment, existing tests and frozen regression
+        run: node tools/validate-r-compatibility.js '${{ matrix.r }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compatibility-${{ matrix.r }}
+          path: tmp/compatibility/
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: environment-logs-${{ matrix.r }}
+          path: |
+            tmp/phase2-smoke/demo-*/logs/environment/
+            logs/environment/
+  compare-patches:
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: compatibility-*
+          merge-multiple: true
+          path: tmp/compatibility
+      - run: node tools/compare-r-compatibility.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-patch-drift
+          path: tmp/compatibility/drift.json

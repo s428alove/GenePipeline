@@ -31,3 +31,5 @@ renv/staging/
 renv/.setup.lock
 logs/environment/
 tmp/phase2-smoke/
+tmp/phase3-runtime/
+tmp/compatibility/

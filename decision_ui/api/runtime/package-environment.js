@@ -62,14 +62,24 @@ function createPackageEnvironment({ project = PROJECT_ROOT, run = runEnvironment
   let current = failure("PACKAGE_ENV_NOT_READY", "Package environment has not been checked.");
   let inFlight = null;
   let setupFailure = null;
+  let compatibility = null;
   const lockPath = path.join(project, "renv", ".setup.lock");
-  function update(value) { current = value; onState(value); return value; }
+  function update(value) {
+    value = { ...value, compatibility };
+    if (compatibility?.bestEffort) {
+      value.warning = compatibility.warning;
+      if (value.error) value.error = { ...value.error, guidance: compatibility.guidance,
+        message: value.error.message + " " + compatibility.guidance };
+    }
+    current = value; onState(value); return value;
+  }
   function busy() {
-    return { ...failure("PACKAGE_ENV_NOT_READY", "GenePipeline is preparing its R packages. Wait for setup to finish, then retry."),
-      state: inFlight ? current.state : "setting_up" };
+    return update({ ...failure("PACKAGE_ENV_NOT_READY", "GenePipeline is preparing its R packages. Wait for setup to finish, then retry."),
+      state: inFlight ? current.state : "setting_up" });
   }
   function locked() { return fs.existsSync(lockPath); }
   async function inspect(runtime) {
+    compatibility = runtime.compatibility || null;
     if (!runtime.ok) return runtime;
     if (inFlight || locked()) return busy();
     const result = await run("check", runtime, { project });
@@ -80,6 +90,7 @@ function createPackageEnvironment({ project = PROJECT_ROOT, run = runEnvironment
   }
   function setup(runtime) {
     if (inFlight) return inFlight;
+    compatibility = runtime.compatibility || null;
     if (!runtime.ok) return Promise.resolve(update(runtime));
     setupFailure = null;
     update({ ok: false, state: "checking", error: null });

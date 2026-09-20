@@ -9,6 +9,7 @@ const { createApp } = require("../decision_ui/api/server");
 const { createPackageEnvironment, PROJECT_ROOT } = require("../decision_ui/api/runtime/package-environment");
 const { environmentFixture } = require("../tests/environment-fixture");
 const { preflightR } = require("../decision_ui/api/runtime/r-preflight");
+const contracts = require("../tests/compatibility-contracts");
 
 async function repairSmoke(project) {
   const parent = path.resolve(PROJECT_ROOT, "tmp/phase2-smoke") + path.sep;
@@ -38,28 +39,31 @@ async function repairSmoke(project) {
   console.log("Broken package repair smoke: PASS");
 }
 
-async function main() {
-  if (process.argv[2] === "--repair-only") return repairSmoke(process.argv[3]);
+async function runSmoke({ compatibilityMode = false, runtime = preflightR() } = {}) {
+  assert.equal(runtime.ok, true, JSON.stringify(runtime));
+  const frozen = contracts.FIXTURE;
+  const fixtureHash = compatibilityMode ? contracts.integrity() : null;
+  const config = compatibilityMode ? contracts.json(path.join(frozen, "config/parameters.json")) : null;
   const gse = "GSE10288";
   const fixture = environmentFixture({ prefix: "demo-", cache: true, bootstrap: false });
   console.log(`Isolated smoke project: ${fixture.project}`);
   for (const directory of ["V0_data_ingest", "decision_layer", "V1_analysis"]) {
     fs.cpSync(path.join(PROJECT_ROOT, directory), path.join(fixture.project, directory), { recursive: true });
   }
-  fs.cpSync(path.join(PROJECT_ROOT, "data_raw", gse), path.join(fixture.project, "data_raw", gse), { recursive: true });
+  fs.cpSync(compatibilityMode ? path.join(frozen, "input") : path.join(PROJECT_ROOT, "data_raw", gse), path.join(fixture.project, "data_raw", gse), { recursive: true });
   const out = `data_processed/${gse}`;
   fs.mkdirSync(path.join(fixture.project, out), { recursive: true });
   const decisionName = "sample_metadata_decision.tsv";
-  fs.copyFileSync(path.join(PROJECT_ROOT, out, decisionName), path.join(fixture.project, out, decisionName));
-  const originalDecision = fs.readFileSync(path.join(PROJECT_ROOT, out, decisionName), "utf8");
+  const sourceDecision = compatibilityMode ? path.join(frozen, "decision", decisionName) : path.join(PROJECT_ROOT, out, decisionName);
+  fs.copyFileSync(sourceDecision, path.join(fixture.project, out, decisionName));
+  const originalDecision = fs.readFileSync(sourceDecision, "utf8");
   // Use the existing reviewed demo threshold, without changing source data/settings.
-  const gate = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, out, "_engineering/missingness_gate.json")));
-  const threshold = gate.configured_threshold;
+  const threshold = compatibilityMode ? config.v0.max_missing_gene_fraction : JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, out, "_engineering/missingness_gate.json"))).configured_threshold;
   const states = [];
   const environment = createPackageEnvironment({ project: fixture.project, onState: (s) => {
     states.push(s.state); console.log(`[smoke environment] ${s.state}: ${s.message || s.error?.message || ""}`);
   } });
-  const app = createApp({ projectRoot: fixture.project, environment });
+  const app = createApp({ projectRoot: fixture.project, environment, preflight: () => runtime });
   const ready = await app.locals.setupEnvironment();
   assert.equal(ready.ok, true, JSON.stringify(ready));
   assert.ok(states.includes("bootstrapping"));
@@ -67,6 +71,7 @@ async function main() {
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   const results = [];
+  const comparison = {};
   async function post(route, body) {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/api/${route}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
@@ -80,6 +85,13 @@ async function main() {
   }
   try {
     const v0 = await post("v0/run", { gse, max_missing_gene_fraction: threshold });
+    if (compatibilityMode) {
+      comparison.v0 = contracts.validateV0(fixture.project);
+      // Preserve actual V0 results before using a fixed substrate for V1. This
+      // separates V0 drift from V1 statistics instead of allowing cancellation.
+      fs.copyFileSync(path.join(fixture.project, out, "expression_gene_log.tsv"), path.join(fixture.project, "v0-expression.tsv"));
+      fs.copyFileSync(path.join(frozen, "expected/expression_gene_log.tsv"), path.join(fixture.project, out, "expression_gene_log.tsv"));
+    }
     const candidates = await post("project/load", { gse, out });
     const rows = candidates.rows.map((row) => ({ ...row,
       include_edit: row.include_existing,
@@ -91,16 +103,36 @@ async function main() {
     await post("decision/save", decision);
     await post("decision/export-and-merge", decision);
     await post("decision/run-validation", { gse, out });
-    await post("v1/run", { gse, run_mode: "full", debug: true });
+    if (compatibilityMode) comparison.decision = contracts.validateDecision(fixture.project);
+    await post("v1/run", { gse, run_mode: "full", ...(config?.v1 || {}), debug: true });
+    if (compatibilityMode) comparison.v1 = contracts.validateV1(fixture.project);
     await post("v1/run", { gse, run_mode: "thresholds_only", padj_cutoff: 0.1, lfc_cutoff: 0.5, debug: true });
-    assert.equal(fs.readFileSync(path.join(PROJECT_ROOT, out, decisionName), "utf8"), originalDecision);
+    if (compatibilityMode) comparison.thresholdsOnly = contracts.validateV1(fixture.project);
+    assert.equal(fs.readFileSync(sourceDecision, "utf8"), originalDecision);
     const report = { ok: true, gse, threshold, project: fixture.project, environment: ready,
-      states, v0Gate: v0.data.gate, sampleCount: candidates.n_samples, results };
+      states, v0Gate: v0.data.gate, sampleCount: candidates.n_samples, results,
+      runtime, fixtureHash, lockHash: contracts.sha256(path.join(PROJECT_ROOT, "renv.lock")), comparison };
     fs.writeFileSync(path.join(fixture.project, "smoke-report.json"), JSON.stringify(report, null, 2));
+    if (compatibilityMode) {
+      assert.equal(contracts.integrity(), fixtureHash, "Source fixture changed during execution");
+      const evidence = path.join(PROJECT_ROOT, "tmp/compatibility", runtime.selected.version);
+      fs.mkdirSync(evidence, { recursive: true });
+      fs.writeFileSync(path.join(evidence, "report.json"), JSON.stringify(report, null, 2));
+      for (const [source, destination] of [["v0-expression.tsv", "expression_gene_log.tsv"],
+        [out + "/_engineering/gene_missingness.tsv", "gene_missingness.tsv"],
+        ["results/GSE10288/deg/topTable.tsv", "topTable.tsv"]]) fs.copyFileSync(path.join(fixture.project, source), path.join(evidence, destination));
+      contracts.assertTolerance(comparison);
+    }
     console.log(`Smoke PASS. Report: ${path.join(fixture.project, "smoke-report.json")}`);
+    return report;
   } finally {
     await new Promise((resolve) => server.close(resolve));
+    if (compatibilityMode) assert.equal(contracts.integrity(), fixtureHash);
   }
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+if (require.main === module) {
+  const action = process.argv[2] === "--repair-only" ? repairSmoke(process.argv[3]) : runSmoke({ compatibilityMode: process.argv.includes("--compatibility") });
+  action.catch((error) => { console.error(error); process.exitCode = 1; });
+}
+module.exports = { runSmoke };

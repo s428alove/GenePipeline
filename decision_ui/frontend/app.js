@@ -27,7 +27,24 @@ document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   syncDatasetFields();
   setDecisionControlsEnabled(false);
+  showRCompatibility();
 });
+
+async function showRCompatibility() {
+  const notice = byId("rCompatibilityNotice");
+  try {
+    const response = await fetch("/api/preflight/r");
+    const result = await response.json();
+    const warning = result.data?.compatibility?.warning;
+    if (warning || !response.ok) {
+      notice.textContent = warning || result.message;
+      notice.hidden = false;
+    }
+  } catch {
+    notice.textContent = "R compatibility status could not be checked. Check that the GenePipeline server is running.";
+    notice.hidden = false;
+  }
+}
 
 function bindEvents() {
   byId("gse").addEventListener("input", handleGseInput);
@@ -2300,4 +2317,3 @@ function renderTable(entries) {
   byId("tableContainer").innerHTML = html;
   renderSelectionState();
 }
-

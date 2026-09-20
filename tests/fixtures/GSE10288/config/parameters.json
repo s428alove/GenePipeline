@@ -1,0 +1,18 @@
+{
+  "gse": "GSE10288",
+  "v0": {
+    "max_missing_gene_fraction": 0.11,
+    "agg": "mean",
+    "force_log2": "auto"
+  },
+  "v1": {
+    "padj_cutoff": 0.1,
+    "lfc_cutoff": 0.5
+  },
+  "cohort": {
+    "case": "Tumor",
+    "control": "Normal",
+    "caseCount": 25,
+    "controlCount": 21
+  }
+}

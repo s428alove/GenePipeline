@@ -1,0 +1,21 @@
+{
+  "id": "windows-r-compatibility-v1",
+  "platform": "win32",
+  "supportedLine": "4.5",
+  "validationTargets": ["4.5.2", "4.5.3"],
+  "validated": {
+    "4.5.2": {
+      "evidence": ".github/workflows/r-compatibility.yml",
+      "localEvidence": "tmp/compatibility/4.5.2/suite.json",
+      "fixture": "tests/fixtures/GSE10288/checksums.json",
+      "status": "PASS"
+    },
+    "4.5.3": {
+      "evidence": ".github/workflows/r-compatibility.yml",
+      "localEvidence": "tmp/compatibility/4.5.3/suite.json",
+      "fixture": "tests/fixtures/GSE10288/checksums.json",
+      "status": "PASS"
+    }
+  },
+  "incompatible": {}
+}

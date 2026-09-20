@@ -1,2 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Frozen checksums cover exact bytes, including original raw-input line endings.
+tests/fixtures/GSE10288/** -text

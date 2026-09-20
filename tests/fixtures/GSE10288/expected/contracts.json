@@ -1,0 +1,42 @@
+{
+  "rawProbes": 339,
+  "mappedProbes": 339,
+  "genesBefore": 285,
+  "genesRemoved": 31,
+  "genesAfter": 254,
+  "samples": 46,
+  "log2Applied": true,
+  "significantIDs": [
+    "AMPD1",
+    "ARHGAP26",
+    "ARID1B",
+    "ASCC3L1",
+    "C1orf131",
+    "C8orf5",
+    "CASP10",
+    "CDK3",
+    "DNAJC21",
+    "DOCK1",
+    "EDC4",
+    "FAM134C",
+    "MYBPC2",
+    "OTUD1",
+    "PDC",
+    "RAB8B",
+    "RLF",
+    "RPS8",
+    "SCUBE3",
+    "TDRD9",
+    "TXNDC13",
+    "UGCGL1",
+    "USP54",
+    "WDFY3",
+    "WWOX",
+    "ZNF384",
+    "ZNF674"
+  ],
+  "baseline": {
+    "rVersion": "4.5.2",
+    "origin": "Existing reviewed local GSE10288 outputs, byte-identical to Phase 2 demo-P04Uf0 smoke. A change detector, not biological ground truth."
+  }
+}

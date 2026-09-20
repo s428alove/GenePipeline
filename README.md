@@ -818,9 +818,11 @@ Save Decision
 - included groups 不是剛好兩組
 - Case / Control mapping 不完整
 
-### R package missing
+### R compatibility warning or failure
 
-依錯誤訊息安裝缺少的 R package，再重新執行。
+GenePipeline 會自動辨識 R compatibility status。R 4.5.2／4.5.3 有完整 regression evidence；較新的 R 會標示為 `unvalidated` 並以 best-effort 執行。若 setup 或 analysis 失敗，請另外安裝 validated R 4.5.x；不需要移除新版，也不需要手動設定 Rscript path。低於 R 4.5 或 registry 明確標示 incompatible 的版本會停止並顯示原因。
+
+詳細 policy、fixture、numeric tolerance 與 CI matrix 請見 [Phase 3 R compatibility validation](docs/R_COMPATIBILITY_PHASE3.md)。
 
 ### 修改 Decision 後 Results 被鎖住
 

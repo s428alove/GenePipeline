@@ -1,0 +1,7 @@
+{
+  "status": "measurement-pending",
+  "absolute": 0,
+  "relative": 0,
+  "rule": "abs(actual-reference) <= absolute + relative * max(abs(actual),abs(reference)); zero/zero relative drift = 0",
+  "reason": "Initial exact measurement, not yet a finalized compatibility tolerance."
+}

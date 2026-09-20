@@ -570,9 +570,21 @@ app.get("/api/health", (req, res) => {
 function checkR(req, res, next) {
   const runtime = preflight();
   res.locals.rRuntime = runtime;
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    body.compatibility = runtime.compatibility || null;
+    if (runtime.compatibility?.bestEffort) {
+      body.warnings = [runtime.compatibility.warning];
+      if (body.ok === false || body.status === "error") {
+        body.message += " " + runtime.compatibility.guidance;
+        if (body.error) body.error.guidance = runtime.compatibility.guidance;
+      }
+    }
+    return originalJson(body);
+  };
   if (!runtime.ok) {
     return sendError(res, {
-      stage: "r_preflight", code: runtime.error.code,
+      stage: ["R_UNSUPPORTED", "R_INCOMPATIBLE"].includes(runtime.error.code) ? "r_compatibility" : "r_preflight", code: runtime.error.code,
       message: runtime.error.message, details: runtime, httpStatus: 503
     });
   }
@@ -614,7 +626,11 @@ app.post("/api/environment/setup", checkR, (req, res) => {
   });
 });
 
-app.locals.setupEnvironment = () => environment.setup(preflight());
+app.locals.setupEnvironment = () => {
+  const runtime = preflight();
+  if (runtime.compatibility?.warning) console.warn(runtime.compatibility.warning);
+  return environment.setup(runtime);
+};
 
 // Check before any R-backed route can modify files. Re-probe on each request so
 // installing/repairing R takes effect without restarting the browser or server.

@@ -39,12 +39,16 @@ function candidate(version, source = "installation-directory") {
   return { version, executableStatus: "usable", sources: [source] };
 }
 
-test("selection preserves baseline, then PATH order; never blindly chooses newest", () => {
+test("selection prefers highest validated, permits newer best-effort, blocks old R", () => {
+  const policy = { ...require("../decision_ui/api/runtime/r-compatibility").registry,
+    validated: { "4.5.2": "test evidence", "4.5.3": "test evidence" } };
   const candidates = [candidate("4.9.0"), candidate("4.4.3", "PATH"), candidate("4.5.2")];
-  assert.equal(selectR({ candidates }).selected.version, "4.5.2");
-  assert.equal(selectR({ candidates: candidates.slice(0, 2) }).selected.version, "4.4.3");
-  assert.equal(selectR({ candidates: [candidate("4.3.3"), candidate("4.3.3")] }).reason, "only-usable-version");
-  assert.equal(selectR({ candidates: [candidate("4.3.3"), candidate("4.9.0")] }).error.code, "R_SELECTION_AMBIGUOUS");
+  assert.equal(selectR({ candidates }, policy).selected.version, "4.5.2");
+  assert.equal(selectR({ candidates: [...candidates, candidate("4.5.3")] }, policy).selected.version, "4.5.3");
+  assert.equal(selectR({ candidates: [candidate("4.5.2"), candidate("4.5.3")] }).selected.version, "4.5.3");
+  assert.equal(selectR({ candidates: candidates.slice(0, 2) }, policy).selected.version, "4.9.0");
+  assert.equal(selectR({ candidates: [candidate("4.3.3"), candidate("4.3.3")] }, policy).error.code, "R_UNSUPPORTED");
+  assert.equal(selectR({ candidates: [candidate("4.3.3"), candidate("4.9.0")] }, policy).compatibility.status, "unvalidated");
   assert.equal(selectR({ candidates: [] }).error.code, "R_NOT_AVAILABLE");
 });
 
